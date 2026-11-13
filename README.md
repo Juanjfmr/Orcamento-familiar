@@ -1,25 +1,55 @@
 # Duo Finn — Orçamento Familiar
 
-Aplicação privada de finanças para duas pessoas, com painel compartilhado e extratos individuais protegidos.
+Aplicação financeira privada para **dois titulares**, com painel unificado e extratos individuais.
 
-> **Atenção:** este repositório está público durante o desenvolvimento. Não adicione credenciais Pluggy, chave Supabase `service_role`, tokens do WhatsApp, PDFs reais, extratos ou dados pessoais.
->
-> Status atual: infraestrutura Supabase independente e integração de autenticação em construção. Nenhuma conta bancária foi conectada.
+> **Repositório temporariamente público:** não adicionar dados pessoais, senhas, documentos ou tokens. O arquivo \`config.js\` contém somente a chave **publicável** do Supabase, concebida para aplicações cliente; a chave \`service_role\` e credenciais Pluggy nunca devem ser enviadas ao GitHub.
 
-## Escopo da V1
-- Contas bancárias individuais sincronizadas automaticamente (integração Pluggy pendente).
-- Resumo familiar conjunto sem duplicidade entre transferências internas e faturas.
-- RLS para proteger movimentações de cada titular.
-- IA para categorização assistida (pendente de API).
-- Agente reativo via WhatsApp (pendente de gateway).
+## Infraestrutura criada e verificada
 
-## Infraestrutura
-- Supabase: `duo-finn` (São Paulo, sa-east-1; project ref `zvjulrlqoxysinmtplsn`).
-- Vercel: demonstração independente `duo-finn-v1-lab`.
-- Migrations em `supabase/migrations/`.
+- Supabase: [projeto duo-finn](https://supabase.com/dashboard/project/zvjulrlqoxysinmtplsn), região \`sa-east-1\` (São Paulo).
+- Migração inicial aplicada: \`supabase/migrations/20261112010000_initial_household_rls.sql\`.
+- Migração de índices aplicada: \`supabase/migrations/20261112020000_bank_sync_indexes.sql\`.
+- Vercel existente: \`duo-finn-v1-lab\`. **A versão com autenticação ainda não foi publicada** por limite diário de deployments da conta. O link existente ainda aponta para demonstração antiga.
 
-### Segurança
-- Autenticação Supabase Auth e RLS em todas as tabelas expostas.
-- Agregados familiares por funções autenticadas, extratos completos disponíveis somente ao titular.
-- Segredos exclusivamente em provedores de backend, nunca no GitHub público.
-- Sem lançamentos financeiros manuais obrigatórios.
+## Front-end presente neste repositório
+
+- Cadastro/login por e-mail com Supabase Auth; confirmação pode exigir configurar URLs permitidas no painel Supabase.
+- Primeiro titular cria a família; convite aleatório de 64 caracteres, válido por 48 horas e limitado ao segundo titular.
+- Segundo titular entra na família com o próprio acesso.
+- Painel familiar consulta agregados autenticados; nenhum detalhe de transação de outro titular é retornado.
+- "Meu extrato" consulta apenas transações do usuário autenticado com RLS.
+- Correção de categorias com permissão de atualização exclusiva ao titular.
+- Interface responsiva para desktop e celular. Quando sem dados bancários, exibe um estado vazio verdadeiro.
+
+## Banco e segurança
+
+- Tabelas: \`households\`, \`household_members\`, \`bank_accounts\`, \`transactions\`; itens Pluggy separados em \`duo_private.bank_connections\`.
+- As tabelas públicas têm Row Level Security (RLS).
+- Não há \`INSERT\` direto para usuários autenticados nas tabelas financeiras.
+- RPCs de consolidação checam a participação do usuário, retornando apenas totais.
+- Teste transacional com dois titulares: aprovada a proteção de extrato, participação e consolidação; dados do teste removidos por \`ROLLBACK\`.
+- A auditoria do Supabase registra 6 avisos sobre funções \`SECURITY DEFINER\`. O uso é deliberado para RPCs autenticadas, com checagem explícita de vínculo; realizar revisão final de segurança antes da entrada de dados financeiros reais.
+
+## Conector Pluggy
+
+\`api/pluggy/connect-token.js\` cria token Pluggy somente com credenciais de servidor e JWT de titular autenticado.
+
+Configurar **apenas na Vercel**, após confirmar as condições de uso do Meu Pluggy:
+- \`SUPABASE_URL\` e \`SUPABASE_PUBLISHABLE_KEY\`
+- \`PLUGGY_CLIENT_ID\` e \`PLUGGY_CLIENT_SECRET\`
+
+O endpoint está **inativo** até configurar esses dados. Não há webhook, sincronização, IA ou WhatsApp operacionais. Veja \`api/pluggy/README.md\`.
+
+## Antes de inserir dados reais
+
+1. Publicar o frontend atualizado na Vercel quando o limite de deployments permitir.
+2. Ajustar URL do aplicativo e Redirect URLs em Supabase Auth; confirmar e-mail/login de ambos.
+3. Proteger as inscrições para apenas os dois titulares (evitar cadastros abertos).
+4. Testar efetivamente o login + convite e revisar permissões.
+5. Validar acesso ao Pluggy para as duas conexões e ativar os fluxos seguros.
+6. Implementar sincronização idempotente, categorização IA e agente WhatsApp.
+7. Tornar o repositório privado antes da operação com dados financeiros verdadeiros.
+
+## V2
+
+Um financiamento imobiliário ativo, com PDF atualizado e simulador de amortização. O PDF histórico de exemplo não foi importado para o banco.
