@@ -97,6 +97,9 @@ function draw(){
 async function refresh(){
  s.loading=true;s.error="";draw();
  try{
+  const current=await db.auth.getSession();
+  if(current.error)throw current.error;
+  if(!current.data.session){s.user=null;s.invite="";s.household=null;s.dashboard=null;s.breakdown=[];s.accounts=[];s.transactions=[];return;}
   const auth=await db.auth.getUser();
   if(auth.error)throw auth.error;
   s.user=auth.data.user;s.invite="";
