@@ -1,0 +1,63 @@
+name: Deploy Duo Finn to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'style.css'
+      - 'app.js'
+      - 'config.js'
+      - 'pluggy-widget.js'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: duo-finn-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate browser modules
+        run: |
+          node --check app.js
+          node --check pluggy-widget.js
+
+      - name: Stage public frontend only
+        run: |
+          mkdir -p _site
+          cp index.html style.css app.js config.js pluggy-widget.js _site/
+          touch _site/.nojekyll
+          test -s _site/index.html
+          test -s _site/app.js
+          if grep -nE '(src|href)="/' _site/index.html; then
+            echo "::error::Absolute asset paths would break GitHub Pages"
+            exit 1
+          fi
+          echo "Staged files:"
+          ls -lah _site/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload static site artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: '_site'
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
