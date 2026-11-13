@@ -6,6 +6,7 @@ const db = createClient(supabaseUrl, supabasePublishableKey, { auth: { persistSe
 const categories = ["Moradia","Alimentação","Mercado","Transporte","Saúde","Educação","Lazer","Assinaturas","Outros","Revisar"];
 const pages = [["inicio","Início"],["fluxo","Fluxo"],["cartoes","Cartões"],["casa","Nossa casa"],["privado","Meu extrato"],["agente","Agente"]];
 const app = document.getElementById("app");
+const staticGitHubPages = location.hostname.endsWith(".github.io");
 const now = new Date();
 const s = {
   page:"inicio", loading:true, busy:false, user:null, household:null, dashboard:null,
@@ -49,7 +50,7 @@ function familyBar(){
 function overview(){
  const d=s.dashboard||{},cats=s.breakdown||[];
  return '<div class="page-title between"><div><span class="eyebrow">Visão compartilhada</span><h1>Visão geral</h1></div><span class="pill">Mês: '+e(s.month)+'</span></div>'+
- (s.accounts.length===0?card('<div class="empty-icon">⌁</div><h2>'+(s.connections.length?'Conexão autorizada, dados ainda em sincronização':'Seus bancos ainda não estão conectados')+'</h2><p class="sub">'+(s.connections.length?'Sua conexão está registrada, mas o importador de contas e transações ainda não está ativo.':'Cada titular conecta seus próprios bancos. A autorização acontece no ambiente seguro da Pluggy.')+'</p>'+button("Conectar meu banco","connect-bank")+'<p class="sub">O Duo Finn ainda não importou nenhuma movimentação real.</p>','empty'):"")+
+ (s.accounts.length===0?card('<div class="empty-icon">⌁</div><h2>'+(s.connections.length?'Conexão autorizada, dados ainda em sincronização':'Seus bancos ainda não estão conectados')+'</h2><p class="sub">'+(s.connections.length?'Sua conexão está registrada, mas o importador de contas e transações ainda não está ativo.':'Cada titular conecta seus próprios bancos. A autorização acontece no ambiente seguro da Pluggy.')+'</p>'+(staticGitHubPages?'<p class="sub">A conexão bancária requer um backend seguro. O GitHub Pages hospeda apenas a interface; a integração Pluggy permanece em preparação.</p>':button("Conectar meu banco","connect-bank"))+'<p class="sub">O Duo Finn ainda não importou nenhuma movimentação real.</p>','empty'):"")+
  card('<span class="eyebrow">Saldo nas contas do casal</span><div class="hero-number">'+brl(d.available_cents)+'</div>'+
  '<p class="sub">Consolidado bancário. Não inclui limite de cartão.</p><div class="metrics">'+
  [['Receitas',d.income_cents],['Despesas',d.expense_cents],['Resultado',(Number(d.income_cents)||0)-(Number(d.expense_cents)||0)]].map(x=>'<div><small>'+x[0]+'</small><strong>'+brl(x[1])+'</strong></div>').join("")+'</div>','hero')+
@@ -145,7 +146,7 @@ document.addEventListener("submit",ev=>{
   const mode=ev.submitter?.value||"login";
   actionAsync(async()=>{
    if(mode==="signup"){
-    const r=await db.auth.signUp({email,password,options:{emailRedirectTo:location.origin}});
+    const r=await db.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
     if(r.error)throw r.error;
     s.message="Cadastro solicitado. Confirme o e-mail, caso necessário, e entre.";
    }else{
