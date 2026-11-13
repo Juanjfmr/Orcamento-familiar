@@ -11,6 +11,17 @@ Aplicação financeira privada para **dois titulares**, com painel unificado e e
 - Migração de índices aplicada: `supabase/migrations/20261112020000_bank_sync_indexes.sql`.
 - Vercel: nova interface implantada em Preview, estado `READY` — https://duo-finn-v1-ert4f9ztg-hub-militar.vercel.app . A conexão bancária automática ainda não está ativa.
 
+## GitHub Pages — interface de testes
+
+- Workflow: `.github/workflows/pages.yml` (publica **somente** `index.html`, `style.css`, `app.js`, `config.js`, `pluggy-widget.js`).
+- Endereço esperado, após ativação: https://juanjfmr.github.io/Orcamento-familiar/
+- **Se não publicar automaticamente:** GitHub → repositório → **Settings → Pages → Build and deployment → Source: GitHub Actions**. O conector GitHub atual não disponibiliza a alteração de Pages pelo chat.
+- No Supabase Auth → **URL Configuration → Redirect URLs**, adicionar `https://juanjfmr.github.io/Orcamento-familiar/`. Mantenha o endereço da Vercel até finalizar a migração.
+- O GitHub Pages é estático: não executa `api/pluggy/*`. **Conexão bancária é desabilitada no Pages** até implantar o backend seguro em domínio acessível à interface.
+- A chave `sb_publishable_...` do Supabase é pública por design e pode integrar o JavaScript do navegador. **Não** adicionar `PLUGGY_CLIENT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` ou token Pluggy ao front-end.
+- Mesmo com repositório privado, o site Pages pode continuar público; confirme o plano e os controles de acesso antes de usar com dados reais.
+- Deploy da Vercel continua independente e não é alterado por este workflow.
+
 ## Front-end presente neste repositório
 
 - Cadastro/login por e-mail com Supabase Auth; confirmação pode exigir configurar URLs permitidas no painel Supabase.
