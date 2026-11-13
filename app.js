@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.119.0";
 import { supabaseUrl, supabasePublishableKey } from "./config.js";
+import { launchPluggy } from "./pluggy-widget.js";
 
 const db = createClient(supabaseUrl, supabasePublishableKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
 const categories = ["Moradia","Alimentação","Mercado","Transporte","Saúde","Educação","Lazer","Assinaturas","Outros","Revisar"];
@@ -8,7 +9,7 @@ const app = document.getElementById("app");
 const now = new Date();
 const s = {
   page:"inicio", loading:true, busy:false, user:null, household:null, dashboard:null,
-  breakdown:[],accounts:[],transactions:[],invite:"",message:"",error:"",
+  breakdown:[],accounts:[],transactions:[],connections:[],invite:"",message:"",error:"",
   month:String(now.getFullYear())+"-"+String(now.getMonth()+1).padStart(2,"0")
 };
 const e = v => String(v??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -48,7 +49,7 @@ function familyBar(){
 function overview(){
  const d=s.dashboard||{},cats=s.breakdown||[];
  return '<div class="page-title between"><div><span class="eyebrow">Visão compartilhada</span><h1>Visão geral</h1></div><span class="pill">Mês: '+e(s.month)+'</span></div>'+
- (s.accounts.length===0?card('<div class="empty-icon">⌁</div><h2>Seus bancos ainda não estão conectados</h2><p class="sub">O Supabase já está vinculado. A conexão bancária automática depende da autorização Pluggy de cada titular. Nenhum valor real foi importado.</p><span class="pill muted-pill">Integração Pluggy pendente</span>','empty'):"")+
+ (s.accounts.length===0?card('<div class="empty-icon">⌁</div><h2>'+(s.connections.length?'Conexão autorizada, dados ainda em sincronização':'Seus bancos ainda não estão conectados')+'</h2><p class="sub">'+(s.connections.length?'Sua conexão está registrada, mas o importador de contas e transações ainda não está ativo.':'Cada titular conecta seus próprios bancos. A autorização acontece no ambiente seguro da Pluggy.')+'</p>'+button("Conectar meu banco","connect-bank")+'<p class="sub">O Duo Finn ainda não importou nenhuma movimentação real.</p>','empty'):"")+
  card('<span class="eyebrow">Saldo nas contas do casal</span><div class="hero-number">'+brl(d.available_cents)+'</div>'+
  '<p class="sub">Consolidado bancário. Não inclui limite de cartão.</p><div class="metrics">'+
  [['Receitas',d.income_cents],['Despesas',d.expense_cents],['Resultado',(Number(d.income_cents)||0)-(Number(d.expense_cents)||0)]].map(x=>'<div><small>'+x[0]+'</small><strong>'+brl(x[1])+'</strong></div>').join("")+'</div>','hero')+
@@ -108,15 +109,16 @@ async function refresh(){
   if(home.error)throw home.error;
   s.household=home.data?.[0]||null;
   if(!s.household){s.dashboard=null;s.breakdown=[];s.accounts=[];s.transactions=[];return;}
-  const [summary,cats,accounts,tx]=await Promise.all([
+  const [summary,cats,accounts,tx,connections]=await Promise.all([
     db.rpc("finn_family_dashboard",{p_month:monthStart()}),
     db.rpc("finn_family_categories",{p_month:monthStart()}),
     db.from("bank_accounts").select("id,display_name,kind,balance_cents,invoice_cents,last_synced_at").order("created_at"),
-    db.from("transactions").select("id,description,amount_cents,booked_on,inferred_category,category_override,kind").gte("booked_on",monthStart()).lt("booked_on",nextMonth()).order("booked_on",{ascending:false}).limit(100)
+    db.from("transactions").select("id,description,amount_cents,booked_on,inferred_category,category_override,kind").gte("booked_on",monthStart()).lt("booked_on",nextMonth()).order("booked_on",{ascending:false}).limit(100),
+    db.rpc("finn_my_bank_connections")
   ]);
-  for(const r of [summary,cats,accounts,tx])if(r.error)throw r.error;
+  for(const r of [summary,cats,accounts,tx,connections])if(r.error)throw r.error;
   s.dashboard=summary.data?.[0]||null;s.breakdown=cats.data||[];
-  s.accounts=accounts.data||[];s.transactions=tx.data||[];
+  s.accounts=accounts.data||[];s.transactions=tx.data||[];s.connections=connections.data||[];
  }catch(ex){s.error=errorText(ex);}
  finally{s.loading=false;draw();}
 }
@@ -125,6 +127,13 @@ document.addEventListener("click",ev=>{
  const page=ev.target.closest("[data-page]");if(page){s.page=page.dataset.page;draw();return;}
  const btn=ev.target.closest("[data-action]");if(!btn)return;
  const a=btn.dataset.action;
+ if(a==="connect-bank")actionAsync(async()=>{
+   await launchPluggy(db,{
+     onConnected:async()=>{await refresh();s.message="Conexão registrada. A importação automática ainda está em preparação.";draw();},
+     onWarning:msg=>{s.message=msg;draw();},
+     onFailure:msg=>{s.error=msg;draw();}
+   });
+ });
  if(a==="logout")actionAsync(async()=>{const r=await db.auth.signOut();if(r.error)throw r.error;await refresh();});
  if(a==="create-household")actionAsync(async()=>{const r=await db.rpc("finn_create_household",{p_label:"Nossa casa"});if(r.error)throw r.error;s.message="Família criada.";await refresh();});
  if(a==="invite")actionAsync(async()=>{const r=await db.rpc("finn_create_invite");if(r.error)throw r.error;s.invite=r.data;s.message="Convite válido por 48 horas.";});
