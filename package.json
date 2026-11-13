@@ -1,0 +1,10 @@
+{
+  "name": "duo-finn",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Aplicativo familiar Duo Finn, com Supabase Auth, RLS e backend Pluggy em preparação",
+  "scripts": {
+    "dev": "python3 -m http.server 8080"
+  }
+}
