@@ -1,0 +1,22 @@
+name: Duo Finn code checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  javascript-syntax:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check server and browser source syntax
+        run: |
+          node --check app.js
+          node --check pluggy-widget.js
+          node --check lib/pluggy-server.js
+          node --check api/pluggy/connect-token.js
+          node --check api/pluggy/confirm-item.js
